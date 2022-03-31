@@ -1,1 +1,248 @@
-Hello World
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Aruco Detect Web App</title>
+  </head>
+  <h1 style="text-align: center">
+    Aruco Detect Web App
+  </h1>
+  <body>
+    <div style="width: 100%; text-align: center; font-size: x-large">
+      <select id="select_dict">
+	<option>DICT_4X4_50</option>
+	<option>DICT_4X4_100</option>
+	<option>DICT_4X4_250</option>
+	<option>DICT_4X4_1000</option>
+	<option>DICT_5X5_50</option>
+	<option>DICT_5X5_100</option>
+	<option>DICT_5X5_250</option>
+	<option>DICT_5X5_1000</option>
+	<option>DICT_6X6_50</option>
+	<option>DICT_6X6_100</option>
+	<option>DICT_6X6_250</option>
+	<option>DICT_6X6_1000</option>
+	<option>DICT_7X7_50</option>
+	<option>DICT_7X7_100</option>
+	<option>DICT_7X7_250</option>
+	<option>DICT_7X7_1000</option>
+      </select>
+    </div>
+    <video id="videoInput" controls playsinline muted autoplay></video>
+    <canvas id="canvasOutput"></canvas>
+    <!-- <script async src=https://docs.opencv.org/4.5.1/opencv.js onload="onOpenCvReady()"></script> -->
+    <script async src="https://cdn.jsdelivr.net/gh/ganwenyao/opencv_js@master/docs/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/gh/ganwenyao/opencv_js@master/docs/utils.js"></script>
+    <div style="display: flex">
+      <div style="width: 50%; text-align: center; font-size: x-large">
+	Original
+      </div>
+      <div style="width: 50%; text-align: center; font-size: x-large">
+	Aruco Detection
+      </div>
+    </div>
+  </body>
+</html>
+<script>
+    const player = document.getElementById('videoInput');
+    let src = null;
+    let dst = null;
+    let cap = null;
+    let isCvLoaded = false
+
+    function onOpenCvReady() {
+        // OpenCV.jsのロードが終わったら呼ばれる
+        if (cv.getBuildInformation)
+        {
+            console.log(cv.getBuildInformation());
+            onloadCallback();
+        }
+        else
+        {
+            // WASM
+            cv['onRuntimeInitialized']=()=>{
+                console.log(cv.getBuildInformation());
+                onloadCallback();
+            }
+        }
+    };
+
+    function onloadCallback() {
+        // OpenCV.jsのロード完了
+        isCvLoaded = true;
+    };
+
+    const constraints = {
+        video: {
+	    facingMode: { exact: "environment" }
+	}
+	// video: true
+    };
+
+    // Attach the video stream to the video element and autoplay.
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+            player.srcObject = stream;
+            player.addEventListener('canplay', onVideoCanPlay, false);
+        });
+
+    function onVideoCanPlay() {
+        // ビデオ再生が可能になった
+        player.width = player.videoWidth // width, heightを設定しないとcap.read(src)で失敗する。
+        player.height = player.videoHeight
+        setTimeout(processVideo, 100);
+    };
+
+    const FPS = 30;
+    function processVideo() {
+	let select_dict = document.getElementById('select_dict').value;
+	let dict = cv.DICT_4X4_50;
+	switch (select_dict) {
+	    case "DICT_4X4_50":
+	        dict = cv.DICT_4X4_50;
+	        break;
+	    case "DICT_4X4_100":
+	        dict = cv.DICT_4X4_100;
+	        break;
+	    case "DICT_4X4_250":
+	        dict = cv.DICT_4X4_250;
+	        break;
+	    case "DICT_4X4_1000":
+	        dict = cv.DICT_4X4_1000;
+	        break;
+	    case "DICT_5X5_50":
+	        dict = cv.DICT_5X5_50;
+	        break;
+	    case "DICT_5X5_100":
+	        dict = cv.DICT_5X5_100;
+	        break;
+	    case "DICT_5X5_250":
+	        dict = cv.DICT_5X5_250;
+	        break;
+	    case "DICT_5X5_1000":
+	        dict = cv.DICT_5X5_1000;
+	        break;
+	    case "DICT_6X6_50":
+	        dict = cv.DICT_6X6_50;
+	        break;
+	    case "DICT_6X6_100":
+	        dict = cv.DICT_6X6_100;
+	        break;
+	    case "DICT_6X6_250":
+	        dict = cv.DICT_6X6_250;
+	        break;
+	    case "DICT_6X6_1000":
+	        dict = cv.DICT_6X6_1000;
+	        break;
+	    case "DICT_7X7_50":
+	        dict = cv.DICT_7X7_50;
+	        break;
+	    case "DICT_7X7_100":
+	        dict = cv.DICT_7X7_100;
+	        break;
+	    case "DICT_7X7_250":
+	        dict = cv.DICT_7X7_250;
+	        break;
+	    case "DICT_7X7_1000":
+	        dict = cv.DICT_7X7_1000;
+	        break;
+	    default:
+	        dict = cv.DICT_4X4_50;
+	}
+        try {
+            if(!isCvLoaded){
+                setTimeout(processVideo, 100);
+                return;
+            }else if(cap==null){
+                // OpenCVのロードが終わり、Videoのフレームがくるのを待つ
+                cap = new cv.VideoCapture(player);
+            }
+            let begin = Date.now();
+
+            // start processing.
+            src = new cv.Mat(player.height, player.width, cv.CV_8UC4);
+            dst = new cv.Mat();
+            cap.read(src);
+
+	    let markerImage = new cv.Mat();
+            let dictionary = new cv.Dictionary(dict);
+            let markerIds = new cv.Mat();
+            let markerCorners = new cv.MatVector();
+            let rvecs = new cv.Mat();
+            let tvecs = new cv.Mat();
+            cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+	    cv.detectMarkers(src, dictionary, markerCorners, markerIds);
+
+            if (markerIds.rows > 0) {
+                // cv.drawDetectedMarkers(src, markerCorners, markerIds);
+		let vec_length = 0.75;
+		let line_color = new cv.Scalar(0, 255, 255);
+		let x_vec_color = new cv.Scalar(255, 0, 0);
+		let y_vec_color = new cv.Scalar(0, 255, 0);
+		let text_color = new cv.Scalar(0, 0, 255);
+		let text_white = new cv.Scalar(255, 255, 255);
+		let text_size = 1.0;
+
+		for (let i = 0; i < markerCorners.size(); i++) {
+		    let corner = markerCorners.get(i);
+		    let id = markerIds.intAt(i, 0);
+
+		    let lt_x = corner.floatAt(0, 0 * corner.channels());
+		    let lt_y = corner.floatAt(0, 0 * corner.channels() + 1);
+		    let rt_x = corner.floatAt(0, 1 * corner.channels());
+		    let rt_y = corner.floatAt(0, 1 * corner.channels() + 1);
+		    let rb_x = corner.floatAt(0, 2 * corner.channels());
+		    let rb_y = corner.floatAt(0, 2 * corner.channels() + 1);
+		    let lb_x = corner.floatAt(0, 3 * corner.channels());
+		    let lb_y = corner.floatAt(0, 3 * corner.channels() + 1);
+
+		    let lt = new cv.Point(lt_x, lt_y);
+		    let rt = new cv.Point(rt_x, rt_y);
+		    let rb = new cv.Point(rb_x, rb_y);
+		    let lb = new cv.Point(lb_x, lb_y);
+
+		    let marker_x = (lt_x + rt_x + rb_x + lb_x) / 4;
+		    let marker_y = (lt_y + rt_y + rb_y + lb_y) / 4;
+		    let marker_center = new cv.Point(marker_x, marker_y);
+
+		    cv.line(src, lt, rt, line_color, 2);
+		    cv.line(src, rt, rb, line_color, 2);
+		    cv.line(src, rb, lb, line_color, 2);
+		    cv.line(src, lb, lt, line_color, 2);
+
+		    let x_vec_x = ((rt_x + rb_x) - (lt_x + lb_x)) / 2 * vec_length;
+		    let x_vec_y = ((rt_y + rb_y) - (lt_y + lb_y)) / 2 * vec_length;
+		    let y_vec_x = ((lt_x + rt_x) - (lb_x + rb_x)) / 2 * vec_length;
+		    let y_vec_y = ((lt_y + rt_y) - (lb_y + rb_y)) / 2 * vec_length;
+
+		    let x_vec_end = new cv.Point(marker_x + x_vec_x, marker_y + x_vec_y);
+		    cv.line(src, marker_center, x_vec_end, x_vec_color, 2, cv.LINE_AA, 0);
+
+		    let y_vec_end = new cv.Point(marker_x + y_vec_x, marker_y + y_vec_y);
+		    cv.line(src, marker_center, y_vec_end, y_vec_color, 2, cv.LINE_AA, 0);
+		    let text_pos = new cv.Point(marker_x + 10, marker_y + 10);
+
+		    cv.putText(src, String(id),
+		    	       text_pos,
+		    	       cv.FONT_HERSHEY_SIMPLEX,
+		    	       text_size, text_color, 6.0);
+		    cv.putText(src, String(id),
+		    	       text_pos,
+		    	       cv.FONT_HERSHEY_SIMPLEX,
+		    	       text_size, text_white, 2.0);
+		}
+            }
+
+            cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+            cv.imshow('canvasOutput', src);
+            src.delete();
+            dst.delete();
+
+            // schedule the next one.
+            let delay = 1000/FPS - (Date.now() - begin);
+            setTimeout(processVideo, delay);
+        } catch (err) {
+            console.error(err.message);
+        }
+        return;
+    };
+</script>
