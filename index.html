@@ -50,7 +50,6 @@
     let isCvLoaded = false
 
     function onOpenCvReady() {
-        // OpenCV.jsのロードが終わったら呼ばれる
         if (cv.getBuildInformation)
         {
             console.log(cv.getBuildInformation());
@@ -58,7 +57,6 @@
         }
         else
         {
-            // WASM
             cv['onRuntimeInitialized']=()=>{
                 console.log(cv.getBuildInformation());
                 onloadCallback();
@@ -67,7 +65,6 @@
     };
 
     function onloadCallback() {
-        // OpenCV.jsのロード完了
         isCvLoaded = true;
     };
 
@@ -86,8 +83,7 @@
         });
 
     function onVideoCanPlay() {
-        // ビデオ再生が可能になった
-        player.width = player.videoWidth // width, heightを設定しないとcap.read(src)で失敗する。
+        player.width = player.videoWidth
         player.height = player.videoHeight
         setTimeout(processVideo, 100);
     };
@@ -153,7 +149,6 @@
                 setTimeout(processVideo, 100);
                 return;
             }else if(cap==null){
-                // OpenCVのロードが終わり、Videoのフレームがくるのを待つ
                 cap = new cv.VideoCapture(player);
             }
             let begin = Date.now();
