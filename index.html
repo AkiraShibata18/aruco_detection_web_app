@@ -27,8 +27,20 @@
 	<option>DICT_7X7_1000</option>
       </select>
     </div>
-    <video id="videoInput" controls playsinline muted autoplay></video>
-    <canvas id="canvasOutput"></canvas>
+    <div style="width: 100%; text-align: center; font-size: x-large">
+      <select id="select_camera">
+	<option>FrontCamera</option>
+	<option>RearCamera</option>
+      </select>
+    </div>
+    <div style="display: flex">
+      <div style="width: 50%; text-align: center">
+	<video id="videoInput" controls playsinline muted autoplay></video>
+      </div>
+      <div style="width: 50%; text-align: center">
+	<canvas id="canvasOutput"></canvas>
+      </div>
+    </div>
     <!-- <script async src=https://docs.opencv.org/4.5.1/opencv.js onload="onOpenCvReady()"></script> -->
     <script async src="https://cdn.jsdelivr.net/gh/ganwenyao/opencv_js@master/docs/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
     <script src="https://cdn.jsdelivr.net/gh/ganwenyao/opencv_js@master/docs/utils.js"></script>
@@ -68,19 +80,37 @@
         isCvLoaded = true;
     };
 
-    const constraints = {
+    let constraints = {
         video: {
-	    facingMode: { exact: "environment" }
+	    facingMode: true
 	}
-	// video: true
     };
-
-    // Attach the video stream to the video element and autoplay.
-    navigator.mediaDevices.getUserMedia(constraints)
-        .then((stream) => {
-            player.srcObject = stream;
-            player.addEventListener('canplay', onVideoCanPlay, false);
-        });
+    let pre_stream = null;
+    function syncCamera() {
+        facing_mode = true;
+        if (document.getElementById('select_camera').value == 'FrontCamera')
+	{
+	    facing_mode = true;
+	}
+	else if (document.getElementById('select_camera').value == 'RearCamera')
+	{
+	    facing_mode = { exact: "environment" };
+	}
+	constraints.video.facingMode = facing_mode;
+	if( pre_stream !== null ){
+	    pre_stream.getVideoTracks().forEach( (camera) => {
+	      camera.stop();
+	    });
+	}
+	// Attach the video stream to the video element and autoplay.
+	navigator.mediaDevices.getUserMedia(constraints)
+	    .then((stream) => {
+		pre_stream = stream;
+		player.srcObject = stream;
+		player.addEventListener('canplay', onVideoCanPlay, false);
+	    });
+    }
+    syncCamera();
 
     function onVideoCanPlay() {
         player.width = player.videoWidth
@@ -89,8 +119,15 @@
     };
 
     const FPS = 30;
+    let pre_select_camera = document.getElementById('select_camera').value;
     function processVideo() {
 	let select_dict = document.getElementById('select_dict').value;
+	let select_camera = document.getElementById('select_camera').value;
+	if (select_camera != pre_select_camera)
+	{
+	    syncCamera();
+	}
+	pre_select_camera = select_camera;
 	let dict = cv.DICT_4X4_50;
 	switch (select_dict) {
 	    case "DICT_4X4_50":
